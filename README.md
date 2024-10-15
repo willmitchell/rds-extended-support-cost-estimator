@@ -1,5 +1,18 @@
 # rds-extended-support-cost-estimator-script
 
+## Important Note: Fork of AWS Samples Project
+
+This repository is a fork of the original [aws-samples/rds-extended-support-cost-estimator](https://github.com/aws-samples/rds-extended-support-cost-estimator) project. The main difference in this fork is the removal of AWS Organizations-related logic. This version is designed to work with individual accounts or a specified list of accounts, rather than automatically discovering and processing all accounts in an AWS Organization.
+
+Key changes in this fork:
+1. Removed the ability to automatically discover and process all accounts in an AWS Organization.
+2. Removed the `--all` and `--exclude-accounts` options.
+3. Made it mandatory to specify accounts either via the `--accounts` parameter or the `--accounts-file` parameter.
+4. Simplified the account validation process.
+5. Removed references to running the script from the management account of an AWS Organization.
+
+These changes make the script more suitable for environments where you want to run the cost estimation for a specific set of accounts, without requiring AWS Organizations access or management account privileges.
+
 ## RDS Extended Support Cost Estimator Script
 
 In September 2023, we [announced Amazon RDS Extended Support](https://aws.amazon.com/about-aws/whats-new/2023/09/amazon-aurora-rds-extended-support-mysql-postgresql-databases/), which allows you to continue running your database on a major engine version past its RDS end of standard support date on Amazon Aurora or Amazon RDS at an additional cost. 
@@ -41,34 +54,14 @@ These scripts provide the following benefits:
 
 ## Prerequisites
 
-1. Download and install [Python 3](https://www.python.org/downloads/).
+1. Python 3.7 or later
+2. Required Python packages: boto3, pandas
 
-2. Ensure that you have an IAM principal in your payer/management account that has at least the following IAM permissions:
-> NOTE: The script does NOT create these roles/policies in your management account. It is assumed that a user with these permissions already granted to them will run the steps listed here.
+You can install the required packages using:
 
 ```
-"organizations:ListAccounts",
-"organizations:DescribeOrganization",
-
-"sts:AssumeRole",
-
-"cloudformation:CreateStackSet",
-"cloudformation:UpdateStackSet",
-"cloudformation:DeleteStackSet",
-"cloudformation:ListStackSetOperationResults",
-"cloudformation:ListStackInstances",
-"cloudformation:StopStackSetOperation"
-"cloudformation:CreateStackInstances",
-"cloudformation:UpdateStackInstances",
-"cloudformation:DeleteStackInstances",
-
-"rds:DescribeDBEngineVersions",
-"rds:DescribeDBInstances",
-"rds:DescribeDBClusters"
-
-"pricing:GetProducts",
+pip install -r requirements.txt
 ```
-These are the minimum permissions needed to create and execute the cloudformation stack/stack-set across the management & all linked accounts in your AWS Organizations. In addition, this also includes the permissions needed to read RDS instance details used by the script as well as using the Price List API to get the Extended Support price for various year-terms. You will be using this IAM principal to configure AWS credentials before running the scripts.
 
 ## Step 1: Clone the repo
 

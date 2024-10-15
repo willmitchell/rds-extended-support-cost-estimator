@@ -101,10 +101,11 @@ def _validate_account(account_id):
     if is_valid_account_id(account_id) is not True:
         raise ValidationException(f'Invalid input: {account_id} must be a 12 digit numeric string')
 
-
+'''
 def get_all_org_accounts(org_client_):
-        """ Returns all ACTIVE accounts in the organization """
-        result = []
+    """ Returns all ACTIVE accounts in the organization """
+    result = []
+    try:
         response = org_client_.list_accounts()
         active_accounts = list(filter(lambda x: x['Status'] == 'ACTIVE', response['Accounts']))
         result.extend(list(map(lambda x: x['Id'], active_accounts)))
@@ -112,31 +113,14 @@ def get_all_org_accounts(org_client_):
             response = org_client_.list_accounts(NextToken=response['NextToken'])
             active_accounts = list(filter(lambda x: x['Status'] == 'ACTIVE', response['Accounts']))
             result.extend(list(map(lambda x: x['Id'], active_accounts)))
-        return result
+    except ClientError:
+        LOGGER.warning("Unable to list organization accounts. This might be a member account.")
+    return result
 
-def validate_org_accounts(input_accounts, payer_account, all_member_accounts):
-    # validate accounts passed in are member accounts in payer's org
+def validate_org_accounts(input_accounts, caller_account, all_member_accounts):
+    # validate accounts passed in are member accounts in caller's org
     for account in input_accounts:
-        if account not in all_member_accounts:
+        if account not in all_member_accounts and account != caller_account:
             raise ValidationException(
-                f"Invalid input: {account} is not a member of payer ({payer_account}) org")
-
-
-def validate_if_being_run_by_payer_account(org_client, caller_account):
-    """ Validate that the script is being run by payer account """
-    try:
-        response = org_client.describe_organization()
-        management_account = response["Organization"]["MasterAccountId"]
-        if caller_account != management_account:
-            LOGGER.error("Script being run by a member account of AWS organization")
-            raise ValidationException("Script can only be run by management account of an AWS Organization")
-
-    except ClientError as err:
-        if err.response["Error"]["Code"] == "AWSOrganizationsNotInUseException":
-            LOGGER.error("Script being run by an account which is not part of an AWS Organization")
-            raise ValidationException("Script can only be run by management account of an AWS Organization")
-        else:
-            raise err
-    except Exception as err:
-        LOGGER.error("Failed calling Organization DescribeOrganization API")
-        raise err
+                f"Invalid input: {account} is not a member of the organization or the caller account")
+'''

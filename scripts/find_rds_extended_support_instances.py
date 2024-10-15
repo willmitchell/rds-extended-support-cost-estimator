@@ -26,9 +26,6 @@ import pandas as pd
 
 from utils.utils import (
     is_china_region, 
-    validate_if_being_run_by_payer_account, 
-    validate_org_accounts,
-    get_all_org_accounts,
     read_accounts_from_file,
     write_accounts_to_file,
     write_regions_to_file
@@ -217,7 +214,7 @@ def main():
     
     caller_account = sts_client.get_caller_identity()['Account']
     is_china = is_china_region(sts_client)
-    validate_if_being_run_by_payer_account(org_client, caller_account)
+    
     LOGGER.info(f'Caller account: {caller_account}')
 
     # Check if the mapping file exists, if it does, read from it
@@ -236,38 +233,14 @@ def main():
         LOGGER.info(f'Saved RDS regions to file: regions.csv. Script will ignore any other inputs and exit.')
         sys.exit(0)
 
-    if args.generate_accounts_file:
-        account_pool = get_all_org_accounts(org_client)
-        write_accounts_to_file(account_pool)
-        LOGGER.info(f'Saved AWS Accounts in Organization to file: accounts.csv. Script will ignore any other inputs and exit.')
-        sys.exit(0) 
-
-    if args.all:
-        LOGGER.info(f'Running in ORG mode for payer account: {caller_account}')
-        account_pool = get_all_org_accounts(org_client)
-        if args.exclude_accounts:
-            LOGGER.info(f'Excluding accounts: {args.exclude_accounts}')
-            exclude_accounts = [account.strip() for account in args.exclude_accounts.split(",")]
-            for account in exclude_accounts:
-                if account in account_pool:
-                    account_pool.remove(account)
-    elif args.accounts:
-        if args.exclude_accounts:
-            raise ValidationException('Invalid input: cannot use --exclude-accounts with --accounts argument')
+    if args.accounts:
         account_pool = [s.strip() for s in args.accounts.split(',')]
-        all_org_accounts = get_all_org_accounts(org_client)
-        validate_org_accounts(account_pool, caller_account, all_org_accounts)
-        LOGGER.info(f'Running in LINKED ACCOUNT mode with accounts: {account_pool}')
+        LOGGER.info(f'Running for specified accounts: {account_pool}')
     elif args.accounts_file:
-        if args.exclude_accounts:
-            raise ValidationException('Invalid input: cannot use --exclude-accounts with --accounts-file argument')
         account_pool = read_accounts_from_file(args.accounts_file)
-        all_org_accounts = get_all_org_accounts(org_client)
-        validate_org_accounts(account_pool, caller_account, all_org_accounts)
-        LOGGER.info(f'Running in LINKED ACCOUNT mode with accounts: {account_pool}')
+        LOGGER.info(f'Running for accounts from file: {account_pool}')
     else:
-        LOGGER.info(f'Running in PAYER ACCOUNT mode for payer account: {caller_account}')
-        account_pool = [caller_account]
+        raise ValidationException('Invalid input: You must specify either --accounts or --accounts-file')
 
     LOGGER.info(f'Running in specific regions: {REGIONS}')
 
@@ -303,19 +276,12 @@ def main():
 def parse_args():
     arg_parser = argparse.ArgumentParser()
     
-    group = arg_parser.add_mutually_exclusive_group()
+    group = arg_parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-a', '--accounts', help='comma separated list of AWS account IDs', type=str)
     group.add_argument('--accounts-file', help='Absolute path of the CSV file containing AWS account IDs', type=str)
-    group.add_argument('--all', help="runs script for the entire AWS Organization", action='store_true')
 
     arg_parser.add_argument('--regions-file', help='Absolute path of the CSV file containing specific AWS regions to run the script against', type=str)
-    arg_parser.add_argument(
-        '--exclude-accounts',
-        help='comma separated list of AWS account IDs to be excluded, only applies when --all flag \
-            is used', type=str
-    )
 
-    arg_parser.add_argument('--generate-accounts-file', help='Creates a `accounts.csv` CSV file containing all AWS accounts in the AWS Organization', action='store_true')
     arg_parser.add_argument('--generate-regions-file', help='Creates a `regions.csv` CSV file containing all AWS regions', action='store_true')
 
     args = arg_parser.parse_args()
